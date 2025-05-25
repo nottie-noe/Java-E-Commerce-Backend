@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "nottiey/ecommerce-backend"
-        DOCKER_CREDENTIALS_ID = "dockerhub-creds"
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials" // Updated ID based on your Jenkins configuration
         GITHUB_CREDENTIALS_ID = "github-creds"
     }
 
@@ -18,6 +18,10 @@ pipeline {
             steps {
                 sh '''
                     cd backend
+                    if [ ! -f pom.xml ]; then
+                        echo "❌ No pom.xml found in backend directory! Exiting..."
+                        exit 1
+                    fi
                     mvn clean package -DskipTests
                 '''
             }
@@ -27,6 +31,10 @@ pipeline {
             steps {
                 sh '''
                     cd backend
+                    if [ ! -f Dockerfile ]; then
+                        echo "❌ No Dockerfile found! Exiting..."
+                        exit 1
+                    fi
                     docker build --no-cache -t $DOCKER_IMAGE .
                 '''
             }
@@ -47,7 +55,7 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             when {
-                expression { return fileExists('k8s/deployment.yaml') }
+                expression { return fileExists('backend/k8s/deployment.yaml') }
             }
             steps {
                 sh '''
@@ -55,8 +63,12 @@ pipeline {
                         echo "❌ kubectl is not installed or configured!"
                         exit 1
                     fi
-                    kubectl apply -f k8s/deployment.yaml
-                    kubectl apply -f k8s/service.yaml
+                    kubectl apply -f backend/k8s/deployment.yaml
+                    kubectl apply -f backend/k8s/service.yaml
+
+                    echo "✅ Verifying Kubernetes deployment..."
+                    kubectl get pods -n default
+                    kubectl get services -n default
                 '''
             }
         }
