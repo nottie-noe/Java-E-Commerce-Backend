@@ -16,13 +16,17 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh '''
+                    cd backend
+                    mvn clean package -DskipTests
+                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 sh '''
+                    cd backend
                     docker build --no-cache -t $DOCKER_IMAGE .
                 '''
             }
@@ -33,6 +37,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        cd backend
                         docker tag $DOCKER_IMAGE "$DOCKER_USER/$DOCKER_IMAGE:latest"
                         docker push "$DOCKER_USER/$DOCKER_IMAGE:latest"
                     '''
