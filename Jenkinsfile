@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/nottie-noe/Java-E-Commerce-Backend.git'
+                git branch: 'main', credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/nottie-noe/Java-E-Commerce-Backend.git"
             }
         }
 
@@ -32,14 +32,9 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
-                        set +e
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        if [ $? -ne 0 ]; then
-                            echo "Docker login failed!"
-                            exit 1
-                        fi
-                        set -e
-                        docker push $DOCKER_IMAGE
+                        docker tag $DOCKER_IMAGE $DOCKER_USER/$DOCKER_IMAGE
+                        docker push $DOCKER_USER/$DOCKER_IMAGE
                     '''
                 }
             }
@@ -51,10 +46,6 @@ pipeline {
             }
             steps {
                 sh '''
-                    if ! command -v kubectl &> /dev/null; then
-                        echo "kubectl is not installed or configured!"
-                        exit 1
-                    fi
                     kubectl apply -f k8s/deployment.yaml
                     kubectl apply -f k8s/service.yaml
                 '''
