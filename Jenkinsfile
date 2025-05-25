@@ -8,9 +8,9 @@ pipeline {
     }
 
     stages {
-        stage('Clone') {
+        stage('Clone Repository') {
             steps {
-                git credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/nottie-noe/your-repo.git'
+                git branch: 'main', credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/nottie-noe/Java-E-Commerce-Backend.git'
             }
         }
 
@@ -22,7 +22,9 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+                sh '''
+                    docker build --no-cache -t $DOCKER_IMAGE .
+                '''
             }
         }
 
@@ -30,7 +32,13 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
+                        set +e
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        if [ $? -ne 0 ]; then
+                            echo "Docker login failed!"
+                            exit 1
+                        fi
+                        set -e
                         docker push $DOCKER_IMAGE
                     '''
                 }
@@ -43,6 +51,10 @@ pipeline {
             }
             steps {
                 sh '''
+                    if ! command -v kubectl &> /dev/null; then
+                        echo "kubectl is not installed or configured!"
+                        exit 1
+                    fi
                     kubectl apply -f k8s/deployment.yaml
                     kubectl apply -f k8s/service.yaml
                 '''
@@ -52,10 +64,10 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully."
+            echo "✅ Pipeline completed successfully."
         }
         failure {
-            echo "Pipeline failed. Check console output."
+            echo "❌ Pipeline failed. Check console output."
         }
     }
 }
