@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "nottiey/ecommerce-backend"
-        DOCKER_CREDENTIALS_ID = "docker-hub-credentials" // Confirm this matches the correct credentials ID in Jenkins
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
         GITHUB_CREDENTIALS_ID = "github-creds"
     }
 
@@ -19,7 +19,7 @@ pipeline {
                 sh '''
                     cd backend
                     if [ ! -f pom.xml ]; then
-                        echo "❌ No pom.xml found in backend directory! Exiting..."
+                        echo "❌ No pom.xml found! Exiting..."
                         exit 1
                     fi
                     mvn clean package -DskipTests
@@ -36,16 +36,16 @@ pipeline {
                         exit 1
                     fi
                     docker build --no-cache -t $DOCKER_IMAGE .
-                    docker tag $DOCKER_IMAGE "$DOCKER_USER/$DOCKER_IMAGE:latest"
                 '''
             }
         }
 
-        stage('Push to DockerHub') {
+        stage('Tag and Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker tag $DOCKER_IMAGE "$DOCKER_USER/$DOCKER_IMAGE:latest"
                         docker push "$DOCKER_USER/$DOCKER_IMAGE:latest"
                     '''
                 }
