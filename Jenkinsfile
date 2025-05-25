@@ -2,54 +2,49 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id') // Jenkins credential ID
-        DOCKER_IMAGE = "yourdockerhubusername/ecommerce-backend"
+        DOCKER_IMAGE = "nottiey/ecommerce-backend"
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
+        GITHUB_CREDENTIALS_ID = "github-creds"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clone Repository') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Debug Workspace') {
-            steps {
-                sh 'ls -R'
+                git branch: 'main', credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/nottie-noe/Java-E-Commerce-Backend.git'
             }
         }
 
         stage('Build with Maven') {
             steps {
-                dir('backend') {
-                    sh '''
-                        if [ ! -f pom.xml ]; then
-                            echo "❌ No pom.xml found! Exiting..."
-                            exit 1
-                        fi
-                        mvn clean package -DskipTests
-                    '''
-                }
+                sh '''
+                    cd backend
+                    if [ ! -f pom.xml ]; then
+                        echo "❌ No pom.xml found! Exiting..."
+                        exit 1
+                    fi
+                    mvn clean package -DskipTests
+                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                dir('backend') {
-                    sh '''
-                        docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .
-                    '''
-                }
+                sh '''
+                    cd backend
+                    if [ ! -f Dockerfile ]; then
+                        echo "❌ No Dockerfile found! Exiting..."
+                        exit 1
+                    fi
+                    docker build --no-cache -t $DOCKER_IMAGE:latest .
+                '''
             }
         }
 
         stage('Push Docker Image to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push $DOCKER_IMAGE:$BUILD_NUMBER
-                        docker tag $DOCKER_IMAGE:$BUILD_NUMBER $DOCKER_IMAGE:latest
                         docker push $DOCKER_IMAGE:latest
                     '''
                 }
@@ -57,19 +52,35 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
+            when {
+                expression { return fileExists('backend/k8s/deployment.yaml') }
+            }
             steps {
-                echo '🚀 Deployment to Kubernetes goes here (kubectl apply -f ...)'
-                // You can expand this to apply manifests or use Helm
+                sh '''
+                    echo "🔍 Checking if kubectl is available..."
+                    if ! command -v kubectl &> /dev/null; then
+                        echo "❌ kubectl not found. Skipping deployment."
+                        exit 1
+                    fi
+
+                    echo "🚀 Deploying to Kubernetes..."
+                    kubectl apply -f backend/k8s/deployment.yaml
+                    kubectl apply -f backend/k8s/service.yaml
+
+                    echo "✅ Verifying Kubernetes resources:"
+                    kubectl get pods -n default
+                    kubectl get services -n default
+                '''
             }
         }
     }
 
     post {
         success {
-            echo '✅ Pipeline completed successfully.'
+            echo "✅ Pipeline completed successfully."
         }
         failure {
-            echo '❌ Pipeline failed. Check logs.'
+            echo "❌ Pipeline failed. Check console output."
         }
     }
 }
