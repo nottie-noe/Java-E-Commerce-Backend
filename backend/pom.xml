@@ -1,7 +1,14 @@
+<dependencies>
+    <!-- Spring Boot Starter for Web Applications -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
 
-<project>
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>com.cyat</groupId>
-    <artifactId>ecommerce</artifactId>
-    <version>1.0-SNAPSHOT</version>
-</project>
+    <!-- Spring Boot Starter for Testing (includes JUnit, Mockito, etc.) -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
