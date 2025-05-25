@@ -35,17 +35,17 @@ pipeline {
                         echo "❌ No Dockerfile found! Exiting..."
                         exit 1
                     fi
-                    docker build --no-cache -t $DOCKER_USER/$DOCKER_IMAGE:latest .
+                    docker build --no-cache -t $DOCKER_IMAGE:latest .
                 '''
             }
         }
 
-        stage('Tag and Push Docker Image') {
+        stage('Push Docker Image to DockerHub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push "$DOCKER_USER/$DOCKER_IMAGE:latest"
+                        docker push $DOCKER_IMAGE:latest
                     '''
                 }
             }
@@ -57,14 +57,17 @@ pipeline {
             }
             steps {
                 sh '''
+                    echo "🔍 Checking if kubectl is available..."
                     if ! command -v kubectl &> /dev/null; then
-                        echo "❌ kubectl is not installed or configured!"
+                        echo "❌ kubectl not found. Skipping deployment."
                         exit 1
                     fi
+
+                    echo "🚀 Deploying to Kubernetes..."
                     kubectl apply -f backend/k8s/deployment.yaml
                     kubectl apply -f backend/k8s/service.yaml
 
-                    echo "✅ Verifying Kubernetes deployment..."
+                    echo "✅ Verifying Kubernetes resources:"
                     kubectl get pods -n default
                     kubectl get services -n default
                 '''
