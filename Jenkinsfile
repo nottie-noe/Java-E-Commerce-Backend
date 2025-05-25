@@ -17,6 +17,7 @@ pipeline {
         stage('Build with Maven') {
             steps {
                 sh '''
+                    cd backend && \
                     if [ ! -f pom.xml ]; then
                         echo "❌ No pom.xml found! Exiting..."
                         exit 1
@@ -29,6 +30,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
+                    cd backend && \
                     if [ ! -f Dockerfile ]; then
                         echo "❌ No Dockerfile found! Exiting..."
                         exit 1
@@ -51,7 +53,7 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             when {
-                expression { return fileExists('k8s/deployment.yaml') }
+                expression { return fileExists('backend/k8s/deployment.yaml') }
             }
             steps {
                 sh '''
@@ -60,8 +62,8 @@ pipeline {
                         exit 1
                     fi
 
-                    kubectl apply -f k8s/deployment.yaml
-                    kubectl apply -f k8s/service.yaml
+                    kubectl apply -f backend/k8s/deployment.yaml
+                    kubectl apply -f backend/k8s/service.yaml
 
                     kubectl get pods -n default
                     kubectl get services -n default
