@@ -35,7 +35,7 @@ pipeline {
                         echo "❌ No Dockerfile found! Exiting..."
                         exit 1
                     fi
-                    docker build --no-cache -t $DOCKER_IMAGE .
+                    docker build --no-cache -t $DOCKER_USER/$DOCKER_IMAGE:latest .
                 '''
             }
         }
@@ -45,7 +45,6 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker tag $DOCKER_IMAGE "$DOCKER_USER/$DOCKER_IMAGE:latest"
                         docker push "$DOCKER_USER/$DOCKER_IMAGE:latest"
                     '''
                 }
