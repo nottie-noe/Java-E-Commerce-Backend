@@ -2,12 +2,17 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "nottiey/ecommerce-backend"
-        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
-        GITHUB_CREDENTIALS_ID = "github-creds"
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id') // Jenkins credential ID
+        DOCKER_IMAGE = "yourdockerhubusername/ecommerce-backend"
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Debug Workspace') {
             steps {
                 sh 'ls -R'
@@ -16,35 +21,35 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                sh '''
-                    cd backend && \
-                    if [ ! -f pom.xml ]; then
-                        echo "❌ No pom.xml found! Exiting..."
-                        exit 1
-                    fi
-                    mvn clean package -DskipTests
-                '''
+                dir('backend') {
+                    sh '''
+                        if [ ! -f pom.xml ]; then
+                            echo "❌ No pom.xml found! Exiting..."
+                            exit 1
+                        fi
+                        mvn clean package -DskipTests
+                    '''
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    cd backend && \
-                    if [ ! -f Dockerfile ]; then
-                        echo "❌ No Dockerfile found! Exiting..."
-                        exit 1
-                    fi
-                    docker build --no-cache -t $DOCKER_IMAGE:latest .
-                '''
+                dir('backend') {
+                    sh '''
+                        docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .
+                    '''
+                }
             }
         }
 
         stage('Push Docker Image to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push $DOCKER_IMAGE:$BUILD_NUMBER
+                        docker tag $DOCKER_IMAGE:$BUILD_NUMBER $DOCKER_IMAGE:latest
                         docker push $DOCKER_IMAGE:latest
                     '''
                 }
@@ -52,32 +57,19 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
-            when {
-                expression { return fileExists('backend/k8s/deployment.yaml') }
-            }
             steps {
-                sh '''
-                    if ! command -v kubectl &> /dev/null; then
-                        echo "❌ kubectl not found. Skipping deployment."
-                        exit 1
-                    fi
-
-                    kubectl apply -f backend/k8s/deployment.yaml
-                    kubectl apply -f backend/k8s/service.yaml
-
-                    kubectl get pods -n default
-                    kubectl get services -n default
-                '''
+                echo '🚀 Deployment to Kubernetes goes here (kubectl apply -f ...)'
+                // You can expand this to apply manifests or use Helm
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline completed successfully."
+            echo '✅ Pipeline completed successfully.'
         }
         failure {
-            echo "❌ Pipeline failed. Check console output."
+            echo '❌ Pipeline failed. Check logs.'
         }
     }
 }
