@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "nottiey/ecommerce-backend"
-        DOCKER_CREDENTIALS_ID = "docker-hub-credentials" // Updated ID based on your Jenkins configuration
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials" // Confirm this matches the correct credentials ID in Jenkins
         GITHUB_CREDENTIALS_ID = "github-creds"
     }
 
@@ -36,6 +36,7 @@ pipeline {
                         exit 1
                     fi
                     docker build --no-cache -t $DOCKER_IMAGE .
+                    docker tag $DOCKER_IMAGE "$DOCKER_USER/$DOCKER_IMAGE:latest"
                 '''
             }
         }
@@ -45,8 +46,6 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDENTIALS_ID", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        cd backend
-                        docker tag $DOCKER_IMAGE "$DOCKER_USER/$DOCKER_IMAGE:latest"
                         docker push "$DOCKER_USER/$DOCKER_IMAGE:latest"
                     '''
                 }
