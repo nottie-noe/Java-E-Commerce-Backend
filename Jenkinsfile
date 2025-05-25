@@ -8,16 +8,15 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Debug Workspace') {
             steps {
-                git branch: 'main', credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/nottie-noe/Java-E-Commerce-Backend.git'
+                sh 'ls -R'
             }
         }
 
         stage('Build with Maven') {
             steps {
                 sh '''
-                    cd backend
                     if [ ! -f pom.xml ]; then
                         echo "❌ No pom.xml found! Exiting..."
                         exit 1
@@ -30,7 +29,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    cd backend
                     if [ ! -f Dockerfile ]; then
                         echo "❌ No Dockerfile found! Exiting..."
                         exit 1
@@ -53,21 +51,18 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             when {
-                expression { return fileExists('backend/k8s/deployment.yaml') }
+                expression { return fileExists('k8s/deployment.yaml') }
             }
             steps {
                 sh '''
-                    echo "🔍 Checking if kubectl is available..."
                     if ! command -v kubectl &> /dev/null; then
                         echo "❌ kubectl not found. Skipping deployment."
                         exit 1
                     fi
 
-                    echo "🚀 Deploying to Kubernetes..."
-                    kubectl apply -f backend/k8s/deployment.yaml
-                    kubectl apply -f backend/k8s/service.yaml
+                    kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/service.yaml
 
-                    echo "✅ Verifying Kubernetes resources:"
                     kubectl get pods -n default
                     kubectl get services -n default
                 '''
