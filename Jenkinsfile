@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'your-dockerhub-username/ecommerce-backend'
+        IMAGE_NAME = 'your-dockerhub-username/ecommerce-backend' // <-- replace this
         IMAGE_TAG = 'latest'
     }
 
@@ -38,7 +38,7 @@ pipeline {
         stage('Push Docker Image to DockerHub') {
             steps {
                 echo '📦 Pushing Docker image to DockerHub...'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push $IMAGE_NAME:$IMAGE_TAG
