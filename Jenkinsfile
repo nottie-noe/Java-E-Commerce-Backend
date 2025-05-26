@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'your-dockerhub-username/ecommerce-backend' // <-- replace this
+        IMAGE_NAME = 'nottiey/ecommerce-backend'
         IMAGE_TAG = 'latest'
     }
 
