@@ -5,6 +5,7 @@ pipeline {
         DOCKER_IMAGE = "nottiey/ecommerce-backend"
         DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
         GITHUB_CREDENTIALS_ID = "github-creds"
+        NEXUS_CREDENTIALS_ID = "nexus"    // Jenkins credentials ID for Nexus username/password
     }
 
     stages {
@@ -15,27 +16,40 @@ pipeline {
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build & Deploy to Nexus') {
             steps {
-                echo "⚙️ Running Maven build..."
-                sh '''
-                    cd backend
+                script {
+                    withCredentials([usernamePassword(credentialsId: "${NEXUS_CREDENTIALS_ID}", usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
+                        // Create temporary settings.xml with Nexus credentials
+                        writeFile file: 'settings.xml', text: """
+                        <settings>
+                          <servers>
+                            <server>
+                              <id>nexus</id>
+                              <username>${NEXUS_USERNAME}</username>
+                              <password>${NEXUS_PASSWORD}</password>
+                            </server>
+                          </servers>
+                        </settings>
+                        """
 
-                    # List contents before build to confirm clean state
-                    echo "Listing backend directory before build:"
-                    ls -l
+                        echo "⚙️ Running Maven deploy with Nexus credentials..."
+                        sh '''
+                            cd backend
 
-                    # List target dir before build (should be empty or not exist)
-                    echo "Listing target directory before build:"
-                    ls -l target || echo "No target directory yet"
+                            # List before build
+                            echo "Listing backend directory before build:"
+                            ls -l
 
-                    # Run Maven package
-                    mvn clean package -DskipTests
+                            # Run Maven clean deploy using settings.xml (will push artifact to Nexus)
+                            mvn clean deploy -s ../settings.xml -DskipTests
 
-                    # List target dir after build - confirm jar is created
-                    echo "Listing target directory after build:"
-                    ls -l target || echo "ERROR: target directory or jar not found! Maven build may have failed."
-                '''
+                            # Confirm target directory contents
+                            echo "Listing target directory after deploy:"
+                            ls -l target || echo "ERROR: target directory or jar not found!"
+                        '''
+                    }
+                }
             }
         }
 
@@ -45,16 +59,11 @@ pipeline {
                 sh '''
                     cd backend
 
-                    # Debug: check Dockerfile presence and contents
                     if [ ! -f Dockerfile ]; then
                         echo "❌ ERROR: Dockerfile not found in backend/"
                         exit 1
-                    else
-                        echo "Dockerfile found:"
-                        head -20 Dockerfile
                     fi
 
-                    # Debug: confirm JAR presence for Docker COPY
                     if ls target/*.jar 1> /dev/null 2>&1; then
                         echo "✅ Found JAR file(s) in target/:"
                         ls target/*.jar
@@ -63,7 +72,6 @@ pipeline {
                         exit 1
                     fi
 
-                    # Build docker image with backend as context
                     docker build --no-cache -t $DOCKER_IMAGE:latest .
                 '''
             }
