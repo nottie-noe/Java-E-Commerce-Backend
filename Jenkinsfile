@@ -7,7 +7,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 echo '🔄 Cloning repository...'
@@ -42,6 +41,21 @@ pipeline {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push $IMAGE_NAME:$IMAGE_TAG
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                echo '🚀 Deploying to Kubernetes...'
+                withCredentials([file(credentialsId: 'kubeconfig-eks', variable: 'KUBECONFIG_FILE')]) {
+                    sh '''
+                        export KUBECONFIG=$KUBECONFIG_FILE
+                        cd backend/k8s
+                        sed -i "s|image: .*|image: $IMAGE_NAME:$IMAGE_TAG|g" ecommerce-rollout.yaml
+                        kubectl apply -f ecommerce-rollout.yaml
+                        kubectl apply -f service-v2.yaml
                     '''
                 }
             }
