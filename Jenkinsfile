@@ -49,11 +49,18 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 echo '🚀 Deploying to Kubernetes...'
-                withCredentials([file(credentialsId: 'kubeconfig-eks', variable: 'KUBECONFIG_FILE')]) {
+                withCredentials([
+                    file(credentialsId: 'kubeconfig-eks', variable: 'KUBECONFIG_FILE'),
+                    usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
                     sh '''
                         export KUBECONFIG=$KUBECONFIG_FILE
+                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+
                         cd backend/k8s
                         sed -i "s|image: .*|image: $IMAGE_NAME:$IMAGE_TAG|g" ecommerce-rollout.yaml
+
                         kubectl apply -f ecommerce-rollout.yaml
                         kubectl apply -f service-v2.yaml
                     '''
