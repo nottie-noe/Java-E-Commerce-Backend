@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gitops-react-java-app-backend-lb
-  namespace: gitops-apps
+  namespace: default
 spec:
   selector:
     app: gitops-react-java-app-backend
